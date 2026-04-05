@@ -139,6 +139,30 @@ Respond ONLY with a JSON array:
 [{ "nodeId": "...", "description": "..." }]`;
     }
 
+    case 'bcm.fix_mece_finding': {
+      const finding = input.finding ?? {};
+      return `You are an expert enterprise architect. Fix this specific MECE issue in the Business Capability Model.
+
+Model: ${model.header.title}
+Current capabilities:
+${capList}
+
+Finding to fix:
+- Type: ${finding.type ?? 'unknown'}
+- Severity: ${finding.severity ?? 'unknown'}
+- Issue: ${finding.message ?? 'No description'}
+${Array.isArray(finding.nodeIds) && finding.nodeIds.length > 0 ? `- Affected nodes: ${finding.nodeIds.join(', ')}` : ''}
+
+Generate the minimal set of operations to fix this issue. Supported operations:
+- { "op": "add", "name": "...", "description": "...", "parent": "parentNodeId", "order": 0 } — add a new capability
+- { "op": "update", "nodeId": "...", "name": "...", "description": "..." } — rename or update an existing capability
+
+Respond ONLY with a JSON array of operations:
+[{ "op": "add"|"update", ... }]
+
+Return an empty array if no automated fix is possible.`;
+    }
+
     case 'bcm.generate_review_brief':
       return `Generate a review brief for this Business Capability Model.
 

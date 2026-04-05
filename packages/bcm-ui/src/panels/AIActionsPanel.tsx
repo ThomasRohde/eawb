@@ -31,6 +31,7 @@ import {
 } from '@fluentui/react-icons';
 import { useBcmStore } from '../store/bcm-store.js';
 import { useModel } from '../api/hooks.js';
+import { AIResultRenderer, type ItemActionType } from './AIResultRenderer.js';
 
 const useStyles = makeStyles({
   root: {
@@ -64,17 +65,6 @@ const useStyles = makeStyles({
     gap: '12px',
     padding: '24px',
     borderRadius: '4px',
-    backgroundColor: tokens.colorNeutralBackground3,
-  },
-  result: {
-    flex: 1,
-    overflow: 'auto',
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: '4px',
-    padding: '12px',
-    fontFamily: 'monospace',
-    fontSize: '12px',
-    whiteSpace: 'pre-wrap',
     backgroundColor: tokens.colorNeutralBackground3,
   },
 });
@@ -169,6 +159,130 @@ export function BcmAIActionsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [dialogAction, setDialogAction] = useState<ActionDef | null>(null);
   const [inputText, setInputText] = useState('');
+  /** Per-item state: indices of items already applied. */
+  const [appliedItems, setAppliedItems] = useState<Set<number>>(new Set());
+  /** Index of the item currently being processed. */
+  const [busyItem, setBusyItem] = useState<number | null>(null);
+
+  const refreshModel = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['bcm'] });
+  }, [qc]);
+
+  const handleItemAction = useCallback(
+    async (type: ItemActionType, item: any, index: number) => {
+      if (!executionContext) return;
+      const modelId = executionContext.modelId;
+
+      setError(null);
+      setBusyItem(index);
+
+      try {
+        switch (type) {
+          case 'apply-rename': {
+            if (!item.nodeId || !item.suggestedName) break;
+            await bcmApi.updateNode(modelId, item.nodeId, { name: item.suggestedName });
+            refreshModel();
+            break;
+          }
+
+          case 'apply-description': {
+            if (!item.nodeId || !item.description) break;
+            await bcmApi.updateNode(modelId, item.nodeId, { description: item.description });
+            refreshModel();
+            break;
+          }
+
+          case 'apply-merge': {
+            const nodeIds: string[] = item.nodeIds ?? [];
+            if (nodeIds.length < 2) break;
+
+            const survivorId = nodeIds[0];
+            const othersIds = nodeIds.slice(1);
+
+            // 1. Rename the surviving node
+            if (item.suggestedName) {
+              await bcmApi.updateNode(modelId, survivorId, { name: item.suggestedName });
+            }
+
+            // 2. Move children from other nodes into the survivor
+            if (model?.nodes) {
+              for (const otherId of othersIds) {
+                const children = model.nodes.filter((n: any) => n.parent === otherId);
+                for (const child of children) {
+                  await bcmApi.moveNode(modelId, child.id, {
+                    parent: survivorId,
+                    order: child.order ?? 0,
+                  });
+                }
+              }
+            }
+
+            // 3. Delete the duplicate nodes
+            for (const otherId of othersIds) {
+              await bcmApi.deleteNode(modelId, otherId);
+            }
+
+            refreshModel();
+            break;
+          }
+
+          case 'fix-finding': {
+            // Send a follow-up AI call to fix this specific MECE finding
+            const execRes = await fetch('/api/ai/execute', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                actionId: 'bcm.fix_mece_finding',
+                input: {
+                  modelId,
+                  finding: item,
+                },
+              }),
+            });
+            const execData = await execRes.json();
+            if (!execData.ok) throw new Error(execData.error);
+
+            // Apply the returned operations directly
+            const ops = execData.data?.structured;
+            if (Array.isArray(ops) && ops.length > 0) {
+              const batchOps = ops
+                .filter(
+                  (op: any) => (op.op === 'add' && op.name) || (op.op === 'update' && op.nodeId),
+                )
+                .map((op: any) =>
+                  op.op === 'add'
+                    ? {
+                        op: 'add' as const,
+                        name: op.name,
+                        description: op.description ?? '',
+                        parent: op.parent ?? null,
+                        order: op.order ?? 0,
+                      }
+                    : {
+                        op: 'update' as const,
+                        nodeId: op.nodeId,
+                        ...(op.name !== undefined && { name: op.name }),
+                        ...(op.description !== undefined && { description: op.description }),
+                      },
+                );
+              if (batchOps.length > 0) {
+                await bcmApi.batchMutate(modelId, batchOps);
+                refreshModel();
+              }
+            }
+            break;
+          }
+        }
+
+        setAppliedItems((prev) => new Set(prev).add(index));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to apply item');
+      } finally {
+        setBusyItem(null);
+      }
+    },
+    [executionContext, refreshModel],
+  );
 
   const handleAccept = useCallback(async () => {
     if (!executionContext || !structuredResult || !lastActionId) return;
@@ -245,11 +359,13 @@ export function BcmAIActionsPanel() {
           break;
         }
 
-        // Normalize names → batch update
+        // Normalize names → batch update (only unapplied items)
         case 'bcm.normalize_names': {
           const renames = Array.isArray(structuredResult) ? structuredResult : [];
           const operations = renames
-            .filter((item: any) => item.nodeId && item.suggestedName)
+            .filter(
+              (item: any, i: number) => item.nodeId && item.suggestedName && !appliedItems.has(i),
+            )
             .map((item: any) => ({
               op: 'update' as const,
               nodeId: item.nodeId,
@@ -261,11 +377,13 @@ export function BcmAIActionsPanel() {
           break;
         }
 
-        // Enrich descriptions → batch update
+        // Enrich descriptions → batch update (only unapplied items)
         case 'bcm.enrich_descriptions': {
           const enrichments = Array.isArray(structuredResult) ? structuredResult : [];
           const operations = enrichments
-            .filter((item: any) => item.nodeId && item.description)
+            .filter(
+              (item: any, i: number) => item.nodeId && item.description && !appliedItems.has(i),
+            )
             .map((item: any) => ({
               op: 'update' as const,
               nodeId: item.nodeId,
@@ -277,7 +395,7 @@ export function BcmAIActionsPanel() {
           break;
         }
 
-        // Review MECE, suggest merges, review brief are read-only — nothing to apply
+        // Review MECE, suggest merges, review brief — per-item only
         case 'bcm.review_mece':
         case 'bcm.suggest_merges':
         case 'bcm.generate_review_brief':
@@ -289,17 +407,27 @@ export function BcmAIActionsPanel() {
       }
 
       // Refresh model data
-      qc.invalidateQueries({ queryKey: ['bcm'] });
+      refreshModel();
       setResult(null);
       setStructuredResult(null);
       setLastActionId(null);
       setExecutionContext(null);
+      setAppliedItems(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply changes');
     } finally {
       setApplying(false);
     }
-  }, [executionContext, structuredResult, lastActionId, activeModelId, selectedNodeId, qc, model]);
+  }, [
+    executionContext,
+    structuredResult,
+    lastActionId,
+    activeModelId,
+    selectedNodeId,
+    refreshModel,
+    model,
+    appliedItems,
+  ]);
 
   if (!activeModelId) {
     return (
@@ -311,10 +439,19 @@ export function BcmAIActionsPanel() {
     );
   }
 
+  const clearResult = () => {
+    setResult(null);
+    setStructuredResult(null);
+    setLastActionId(null);
+    setExecutionContext(null);
+    setAppliedItems(new Set());
+  };
+
   const handleExecute = async (action: ActionDef, input?: string) => {
     setExecuting(true);
     setError(null);
     setResult(null);
+    setAppliedItems(new Set());
     setDialogAction(null);
 
     try {
@@ -358,6 +495,14 @@ export function BcmAIActionsPanel() {
     }
   };
 
+  // Actions that support bulk "Accept All" (not per-item-only actions)
+  const bulkAcceptActions = [
+    'bcm.generate_first_level',
+    'bcm.expand_node',
+    'bcm.normalize_names',
+    'bcm.enrich_descriptions',
+  ];
+
   return (
     <div className={styles.root}>
       <div className={styles.header}>
@@ -400,22 +545,26 @@ export function BcmAIActionsPanel() {
           <Text weight="semibold" size={200}>
             Result
           </Text>
-          <div className={styles.result}>{result}</div>
+          <AIResultRenderer
+            actionId={lastActionId ?? ''}
+            content={result}
+            structured={structuredResult}
+            onItemAction={handleItemAction}
+            appliedItems={appliedItems}
+            busyItem={busyItem}
+          />
           <div style={{ display: 'flex', gap: '8px' }}>
-            {lastActionId &&
-              !['bcm.review_mece', 'bcm.suggest_merges', 'bcm.generate_review_brief'].includes(
-                lastActionId,
-              ) && (
-                <Button
-                  appearance="primary"
-                  size="small"
-                  onClick={handleAccept}
-                  disabled={!structuredResult || applying}
-                >
-                  {applying ? 'Applying…' : 'Accept'}
-                </Button>
-              )}
-            <Button size="small" onClick={() => setResult(null)}>
+            {lastActionId && bulkAcceptActions.includes(lastActionId) && (
+              <Button
+                appearance="primary"
+                size="small"
+                onClick={handleAccept}
+                disabled={!structuredResult || applying}
+              >
+                {applying ? 'Applying...' : 'Accept All'}
+              </Button>
+            )}
+            <Button size="small" onClick={clearResult}>
               Dismiss
             </Button>
           </div>

@@ -100,7 +100,7 @@ repo-root/
     cache/ index/ logs/
   architecture/
     bcm-studio/models/       # *.bcm.jsonl files
-    markdown-editor/docs/    # *.md documents
+    markdown-editor/docs/    # *.md documents 
     decisions/ reviews/ exports/
   .github/
     copilot-instructions.md  # Auto-generated, user-editable
