@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.ea-workbench/
+.claude/
+*.tsbuildinfo
+bash.exe.stackdump
+.env
+.env.local
+*.log

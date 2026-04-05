@@ -1,0 +1,25 @@
+{
+  "name": "@ea-workbench/chat-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ea-workbench/shared-schema": "*",
+    "@ea-workbench/tool-api": "*",
+    "fastify": "^5.0.0",
+    "zod": "^3.24.0"
+  }
+}

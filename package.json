@@ -1,0 +1,33 @@
+{
+  "name": "ea-workbench",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Repo-native enterprise architecture workbench",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w packages/shared-schema -w packages/tool-api -w packages/acp-core -w packages/git-abstraction -w packages/export-core -w packages/bcm-core -w packages/chat-core -w packages/editor-core -w packages/help-core && npm run build -w packages/acp-copilot -w packages/bcm-ai -w packages/runtime && npm run build -w packages/shell-ui -w packages/bcm-ui -w packages/chat-ui -w packages/editor-ui -w packages/help-ui && npm run build -w packages/cli",
+    "dev": "npm run dev --workspace=packages/cli",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsgo -b",
+    "lint": "eslint packages/",
+    "clean": "rimraf --glob \"packages/*/dist\"",
+    "install:global": "npm run build && cd packages/cli && npm link",
+    "refresh": "npm run clean && npm run build && cd packages/cli && npm link"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260401.1",
+    "eslint": "^9.0.0",
+    "prettier": "^3.8.1",
+    "rimraf": "^6.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "~5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

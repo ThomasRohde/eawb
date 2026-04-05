@@ -1,0 +1,27 @@
+{
+  "name": "@ea-workbench/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "eawb": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup && node scripts/bundle-ui.js",
+    "dev": "tsup --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ea-workbench/acp-copilot": "*",
+    "@ea-workbench/runtime": "*",
+    "@ea-workbench/shell-ui": "*",
+    "commander": "^13.0.0",
+    "@inquirer/prompts": "^7.0.0",
+    "open": "^10.0.0"
+  }
+}

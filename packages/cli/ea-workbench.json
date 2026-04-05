@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "name": "Instance 2",
+  "tools": [
+    {
+      "id": "bcm-studio",
+      "enabled": true
+    }
+  ],
+  "createdAt": "2026-04-02T10:14:31.687Z"
+}

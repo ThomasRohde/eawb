@@ -1,0 +1,23 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared-schema" },
+    { "path": "packages/tool-api" },
+    { "path": "packages/acp-core" },
+    { "path": "packages/acp-copilot" },
+    { "path": "packages/git-abstraction" },
+    { "path": "packages/export-core" },
+    { "path": "packages/bcm-core" },
+    { "path": "packages/bcm-ai" },
+    { "path": "packages/bcm-ui" },
+    { "path": "packages/chat-core" },
+    { "path": "packages/chat-ui" },
+    { "path": "packages/editor-core" },
+    { "path": "packages/editor-ui" },
+    { "path": "packages/help-core" },
+    { "path": "packages/help-ui" },
+    { "path": "packages/shell-ui" },
+    { "path": "packages/runtime" },
+    { "path": "packages/cli" }
+  ]
+}
