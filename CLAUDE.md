@@ -21,7 +21,7 @@ Build order is enforced in the root `build` script — leaf packages first, then
 
 ## Monorepo Structure
 
-14 packages in `packages/` using npm workspaces:
+18 packages in `packages/` using npm workspaces:
 
 - **shared-schema** — Zod schemas, path constants, API envelope (no deps)
 - **tool-api** — ToolManifest, ArtifactType, ToolRegistration contracts
@@ -34,11 +34,15 @@ Build order is enforced in the root `build` script — leaf packages first, then
 - **bcm-ui** — React panels (tree, hierarchy, inspector, export, AI actions)
 - **chat-core** — AI Chat tool (conversations, routes)
 - **chat-ui** — Chat panel React component
+- **editor-core** — Markdown Editor schemas, storage, routes
+- **editor-ui** — Markdown Editor React panels
+- **help-core** — Help tool manifest + routes
+- **help-ui** — Help React panel
 - **runtime** — Fastify server, SQLite, WebSocket, tool host, AI orchestrator
 - **shell-ui** — Dockview layout + Fluent UI shell (Vite app)
 - **cli** — `eawb` binary, bundles shell-ui dist into `dist/public/`
 
-Backend packages use **tsup** (ESM + DTS). UI packages use **Vite**. `bcm-ui` and `chat-ui` are source-only (consumed by shell-ui via Vite bundling).
+Backend packages use **tsup** (ESM + DTS). UI packages use **Vite**. `bcm-ui`, `chat-ui`, `editor-ui`, and `help-ui` are source-only (consumed by shell-ui via Vite bundling).
 
 ## TypeScript Conventions
 
@@ -69,6 +73,7 @@ The tool-api `ToolManifest` interface defines the contract. See `bcm-core/src/ma
 ## ACP Integration
 
 Uses `@agentclientprotocol/sdk` (v0.18.0+). Key patterns:
+
 - `ClientSideConnection` constructor takes a **factory function** `(connection) => clientHandler`, not a client object
 - `newSession()` requires `{ cwd, mcpServers: [] }`
 - Streaming text arrives at `params.update.content.text` in `sessionUpdate`

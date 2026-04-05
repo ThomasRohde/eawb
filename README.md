@@ -20,31 +20,42 @@ eawb open           # initializes if needed, starts server, opens browser
 
 ## Commands
 
-| Command | Description |
-|---|---|
-| `eawb open` | Start the workbench (auto-finds available port) |
-| `eawb init` | Initialize a directory as an EA Workbench |
-| `eawb doctor` | Check prerequisites (Node, Git, Copilot CLI) |
-| `eawb open --port 3000` | Use a specific port |
-| `eawb open --no-browser` | Start without opening the browser |
+| Command                  | Description                                     |
+| ------------------------ | ----------------------------------------------- |
+| `eawb open`              | Start the workbench (auto-finds available port) |
+| `eawb init`              | Initialize a directory as an EA Workbench       |
+| `eawb doctor`            | Check prerequisites (Node, Git, Copilot CLI)    |
+| `eawb open --port 3000`  | Use a specific port                             |
+| `eawb open --no-browser` | Start without opening the browser               |
 
 ## Tools
 
 ### BCM Studio
+
 Business Capability Modeling tool for creating hierarchical capability maps.
 
 - Tree editor with drag-drop, rename, add child, delete
 - Visual hierarchy view with zoom/pan
+- Capability Map view
 - Property inspector with auto-save
 - AI-assisted generation (generate capabilities, expand nodes, MECE review, name normalization, merge suggestions, description enrichment, review briefs)
 - Export to Markdown, HTML, SVG
 
 ### AI Chat
+
 Conversational AI assistant powered by GitHub Copilot via ACP. Create conversations, ask questions, get architecture advice.
+
+### Markdown Editor
+
+Create and edit markdown documents with a WYSIWYG editor. Documents are stored in `architecture/markdown-editor/docs/`.
+
+### Help
+
+Comprehensive built-in help and documentation for the workbench.
 
 ## Architecture
 
-14-package TypeScript monorepo using npm workspaces:
+18-package TypeScript monorepo using npm workspaces:
 
 ```
 packages/
@@ -62,6 +73,10 @@ packages/
   bcm-ui/           → BCM Studio React panels
   chat-core/        → AI Chat conversations + API routes
   chat-ui/          → Chat React panel
+  editor-core/      → Markdown Editor schemas, storage, API routes
+  editor-ui/        → Markdown Editor React panels
+  help-core/        → Help tool manifest + routes
+  help-ui/          → Help React panel
 ```
 
 ## Data Format
@@ -85,6 +100,7 @@ repo-root/
     cache/ index/ logs/
   architecture/
     bcm-studio/models/       # *.bcm.jsonl files
+    markdown-editor/docs/    # *.md documents
     decisions/ reviews/ exports/
   .github/
     copilot-instructions.md  # Auto-generated, user-editable
@@ -106,6 +122,7 @@ See the `/add-tool` skill or the "Adding a New Tool" section in CLAUDE.md. The p
 Uses the [Agent Client Protocol](https://agentclientprotocol.com/) with GitHub Copilot CLI as the provider. The adapter spawns `copilot --acp` as a child process and communicates via NDJSON over stdio.
 
 BCM Studio provides 7 AI actions:
+
 - **Generate First-Level** — decompose a domain into top-level capabilities
 - **Expand Node** — break a capability into sub-capabilities
 - **Review MECE** — check for overlaps, gaps, and consistency
