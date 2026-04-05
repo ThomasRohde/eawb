@@ -64,30 +64,58 @@ function renderNodeBox(
           onSelect(node.id);
         }}
       />
-      <text
-        x={node.position.x + node.size.w / 2}
-        y={isLeaf ? node.position.y + node.size.h / 2 : node.position.y + 24}
-        textAnchor="middle"
-        dominantBaseline="central"
-        style={{
-          font: isLeaf ? LEAF_FONT : PARENT_FONT,
-          fill: '#000000',
-          pointerEvents: 'none',
-          userSelect: 'none',
-        }}
-      >
-        {truncate(node.name, node.size.w - 16, isLeaf ? 11 : 13)}
-      </text>
+      {(() => {
+        const fontSize = isLeaf ? 11 : 13;
+        const lines = wrapText(node.name, node.size.w - 16, fontSize);
+        const lineHeight = fontSize * 1.3;
+        const cx = node.position.x + node.size.w / 2;
+        const baseY = isLeaf
+          ? node.position.y + node.size.h / 2 - ((lines.length - 1) * lineHeight) / 2
+          : node.position.y + 24;
+        return (
+          <text
+            textAnchor="middle"
+            dominantBaseline="central"
+            style={{
+              font: isLeaf ? LEAF_FONT : PARENT_FONT,
+              fill: '#000000',
+              pointerEvents: 'none',
+              userSelect: 'none',
+            }}
+          >
+            {lines.map((line, i) => (
+              <tspan key={i} x={cx} y={baseY + i * lineHeight}>
+                {line}
+              </tspan>
+            ))}
+          </text>
+        );
+      })()}
       {node.children.map((child) => renderNodeBox(child, selectedNodeId, onSelect))}
     </g>
   );
 }
 
-function truncate(text: string, maxWidth: number, fontSize: number): string {
+function wrapText(text: string, maxWidth: number, fontSize: number): string[] {
   const avgCharWidth = fontSize * 0.58;
-  const maxChars = Math.floor(maxWidth / avgCharWidth);
-  if (text.length <= maxChars) return text;
-  return text.slice(0, Math.max(1, maxChars - 1)) + '\u2026';
+  const maxChars = Math.max(1, Math.floor(maxWidth / avgCharWidth));
+  if (text.length <= maxChars) return [text];
+
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+
+  for (const word of words) {
+    const test = current ? `${current} ${word}` : word;
+    if (test.length <= maxChars) {
+      current = test;
+    } else {
+      if (current) lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
 }
 
 export function BcmMapPanel() {
