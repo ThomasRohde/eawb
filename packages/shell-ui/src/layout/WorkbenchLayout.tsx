@@ -7,15 +7,15 @@ import {
   BcmHierarchyView,
   BcmInspector,
   BcmExportPanel,
-  BcmAIActionsPanel,
   BcmModelManagerPanel,
   BcmMapPanel,
 } from '@ea-workbench/bcm-ui';
+import { AIActionsPanel } from '../panels/AIActionsPanel.js';
 import { ChatPanel } from '@ea-workbench/chat-ui';
 import { MarkdownEditorPanel, useEditorStore } from '@ea-workbench/editor-ui';
 import { HelpPanel } from '@ea-workbench/help-ui';
 import { VersionHistoryPanel } from '../panels/VersionHistoryPanel.js';
-import { useLayoutStore, layoutStorage } from '../store/layout-store.js';
+import { useLayoutStore, layoutStorage, PANEL_TO_TOOL } from '../store/layout-store.js';
 import { useThemeStore } from '../store/theme-store.js';
 import { ErrorBoundary } from '../ErrorBoundary.js';
 import { GroupHeaderActions } from './GroupHeaderActions.js';
@@ -40,7 +40,7 @@ const components: Record<string, any> = {
   'bcm-hierarchy': withErrorBoundary(BcmHierarchyView),
   'bcm-inspector': withErrorBoundary(BcmInspector),
   'bcm-export': withErrorBoundary(BcmExportPanel),
-  'bcm-ai': withErrorBoundary(BcmAIActionsPanel),
+  'bcm-ai': withErrorBoundary(AIActionsPanel),
   'bcm-models': withErrorBoundary(BcmModelManagerPanel),
   'bcm-map': withErrorBoundary(BcmMapPanel),
   'chat-panel': withErrorBoundary(ChatPanel),
@@ -51,6 +51,7 @@ const components: Record<string, any> = {
 
 export function WorkbenchLayout() {
   const setApi = useLayoutStore((s) => s.setApi);
+  const setActiveToolId = useLayoutStore((s) => s.setActiveToolId);
   const openPanel = useLayoutStore((s) => s.openPanel);
   const resetLayout = useLayoutStore((s) => s.resetLayout);
   const resolved = useThemeStore((s) => s.resolved);
@@ -94,6 +95,14 @@ export function WorkbenchLayout() {
       event.api.onDidLayoutChange(() => {
         if (useLayoutStore.getState().suspendPersistence === 0) {
           layoutStorage.save(event.api);
+        }
+      });
+
+      // Track which tool owns the active panel
+      event.api.onDidActivePanelChange((e) => {
+        if (e) {
+          const toolId = PANEL_TO_TOOL[e.id] ?? null;
+          if (toolId) setActiveToolId(toolId);
         }
       });
     },

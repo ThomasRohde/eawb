@@ -50,8 +50,23 @@ export const layoutStorage = {
   },
 };
 
+/** Maps panel IDs to their owning tool ID. */
+export const PANEL_TO_TOOL: Record<string, string> = {
+  'bcm-tree': 'bcm-studio',
+  'bcm-hierarchy': 'bcm-studio',
+  'bcm-inspector': 'bcm-studio',
+  'bcm-export': 'bcm-studio',
+  'bcm-models': 'bcm-studio',
+  'bcm-map': 'bcm-studio',
+  'md-editor': 'markdown-editor',
+  'chat-panel': 'acp-chat',
+  'help-panel': 'help',
+};
+
 interface LayoutState {
   api: DockviewApi | null;
+  /** The tool ID that owns the most recently focused panel. */
+  activeToolId: string | null;
   /**
    * Generation counter for persistence suspension. When > 0, onDidLayoutChange
    * should skip persistence. Incremented on reset start, decremented after a
@@ -59,6 +74,7 @@ interface LayoutState {
    */
   suspendPersistence: number;
   setApi: (api: DockviewApi) => void;
+  setActiveToolId: (toolId: string | null) => void;
   openPanel: (id: string) => void;
   resetLayout: () => void;
   popoutPanel: (id: string) => void;
@@ -68,9 +84,12 @@ interface LayoutState {
 
 export const useLayoutStore = create<LayoutState>((set, get) => ({
   api: null,
+  activeToolId: null,
   suspendPersistence: 0,
 
   setApi: (api) => set({ api }),
+
+  setActiveToolId: (toolId) => set({ activeToolId: toolId }),
 
   openPanel: (id) => {
     const { api } = get();

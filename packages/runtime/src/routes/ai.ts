@@ -19,6 +19,7 @@ import {
   loadAISession,
 } from '../ai-orchestrator.js';
 import { ModelStore } from '@ea-workbench/bcm-core';
+import { DocumentStore } from '@ea-workbench/editor-core';
 
 /**
  * Build a prompt for a BCM AI action based on the action ID, model data, and input.
@@ -179,6 +180,56 @@ Respond in markdown.`;
   }
 }
 
+/**
+ * Build a prompt for a Markdown Editor AI action.
+ */
+function buildEditorPrompt(actionId: string, doc: { title: string; content: string }): string {
+  switch (actionId) {
+    case 'md.improve_clarity':
+      return `You are an expert editor. Rewrite the following markdown document for improved clarity, conciseness, and readability. Preserve the meaning and structure. Keep it in markdown format.
+
+Title: ${doc.title}
+
+Document:
+${doc.content}
+
+Respond ONLY with the improved markdown document, no other text.`;
+
+    case 'md.summarize':
+      return `You are an expert writer. Generate a concise executive summary of the following markdown document. The summary should capture the key points and conclusions.
+
+Title: ${doc.title}
+
+Document:
+${doc.content}
+
+Respond ONLY with the summary in markdown format, no other text.`;
+
+    case 'md.expand':
+      return `You are an expert writer. Expand the following markdown document by elaborating on each point, adding detail, examples, and fuller prose. Maintain the existing structure and headings.
+
+Title: ${doc.title}
+
+Document:
+${doc.content}
+
+Respond ONLY with the expanded markdown document, no other text.`;
+
+    case 'md.fix_grammar':
+      return `You are an expert proofreader. Fix all grammar, spelling, punctuation, and style issues in the following markdown document. Preserve the meaning and structure exactly. Keep it in markdown format.
+
+Title: ${doc.title}
+
+Document:
+${doc.content}
+
+Respond ONLY with the corrected markdown document, no other text.`;
+
+    default:
+      return `Action: ${actionId}\nDocument: ${doc.title}\nContent: ${doc.content}`;
+  }
+}
+
 function getDepth(nodes: any[], nodeId: string): number {
   let depth = 0;
   let current = nodes.find((n: any) => n.id === nodeId);
@@ -201,19 +252,26 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     const { actionId, input } = request.body;
     const workspacePath = (app as any).workspacePath as string;
 
-    // Load the model for BCM actions
+    // Build prompt based on action prefix
     let promptText: string;
     try {
       if (actionId.startsWith('bcm.') && input.modelId) {
         const store = new ModelStore(workspacePath);
         const model = store.loadModel(input.modelId);
         promptText = buildBcmPrompt(actionId, model, input);
+      } else if (actionId.startsWith('md.') && input.documentId) {
+        const docStore = new DocumentStore(workspacePath);
+        const doc = docStore.getDocument(input.documentId);
+        promptText = buildEditorPrompt(actionId, {
+          title: doc.meta.title,
+          content: doc.content,
+        });
       } else {
         promptText = JSON.stringify({ actionId, input });
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load model';
-      return reply.code(400).send(failure(message, 'MODEL_LOAD_FAILED'));
+      const message = err instanceof Error ? err.message : 'Failed to load artifact';
+      return reply.code(400).send(failure(message, 'ARTIFACT_LOAD_FAILED'));
     }
 
     try {

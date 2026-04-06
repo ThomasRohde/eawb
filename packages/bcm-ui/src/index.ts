@@ -7,3 +7,4 @@ export { BcmAIActionsPanel } from './panels/AIActionsPanel.js';
 export { BcmModelManagerPanel } from './panels/ModelManagerPanel.js';
 export { BcmMapPanel } from './panels/MapPanel.js';
 export { useBcmStore } from './store/bcm-store.js';
+export { useBcmActionProvider } from './ai/bcm-action-provider.js';
