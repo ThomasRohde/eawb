@@ -18,6 +18,8 @@
     "@ea-workbench/chat-ui": "*",
     "@ea-workbench/editor-ui": "*",
     "@ea-workbench/help-ui": "*",
+    "@ea-workbench/json-forms-core": "*",
+    "@ea-workbench/json-forms-ui": "*",
     "@ea-workbench/shared-schema": "*",
     "@ea-workbench/tool-api": "*",
     "@fluentui/react-components": "^9.50.0",

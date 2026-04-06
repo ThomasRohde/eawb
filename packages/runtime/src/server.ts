@@ -18,6 +18,7 @@ import { createBcmRegistration } from '@ea-workbench/bcm-core';
 import { createChatRegistration } from '@ea-workbench/chat-core';
 import { createEditorRegistration } from '@ea-workbench/editor-core';
 import { createHelpRegistration } from '@ea-workbench/help-core';
+import { createJsonFormsRegistration } from '@ea-workbench/json-forms-core';
 
 export interface ServerOptions {
   port: number;
@@ -89,6 +90,7 @@ export async function createServer(opts: ServerOptions) {
   addToolRegistration(createChatRegistration());
   addToolRegistration(createEditorRegistration());
   addToolRegistration(createHelpRegistration());
+  addToolRegistration(createJsonFormsRegistration());
 
   // Mount registered tools
   await mountTools(app);

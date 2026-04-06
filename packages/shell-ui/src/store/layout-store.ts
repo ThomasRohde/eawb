@@ -21,6 +21,8 @@ const ALL_PANELS: PanelDef[] = [
   { id: 'version-history', component: 'version-history', title: 'Version History' },
   { id: 'help-panel', component: 'help-panel', title: 'Help' },
   { id: 'settings-panel', component: 'settings-panel', title: 'Settings' },
+  { id: 'json-forms-designer', component: 'json-forms-designer', title: 'Form Designer' },
+  { id: 'json-forms-filler', component: 'json-forms-filler', title: 'Form Filler' },
 ];
 
 const LAYOUT_KEY = 'eawb_layout';
@@ -62,6 +64,8 @@ export const PANEL_TO_TOOL: Record<string, string> = {
   'md-editor': 'markdown-editor',
   'chat-panel': 'acp-chat',
   'help-panel': 'help',
+  'json-forms-designer': 'json-forms',
+  'json-forms-filler': 'json-forms',
 };
 
 interface LayoutState {

@@ -23,6 +23,8 @@
     "@ea-workbench/chat-core": "*",
     "@ea-workbench/editor-core": "*",
     "@ea-workbench/help-core": "*",
+    "@ea-workbench/json-forms-ai": "*",
+    "@ea-workbench/json-forms-core": "*",
     "@ea-workbench/export-core": "*",
     "@ea-workbench/git-abstraction": "*",
     "@ea-workbench/shared-schema": "*",

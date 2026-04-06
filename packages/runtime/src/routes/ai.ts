@@ -21,6 +21,19 @@ import {
 } from '../ai-orchestrator.js';
 import { ModelStore } from '@ea-workbench/bcm-core';
 import { DocumentStore } from '@ea-workbench/editor-core';
+import {
+  FormStore,
+  NotFoundError as FormNotFoundError,
+  compileSchema,
+  validateUiSchema,
+  InvalidJsonSchemaError,
+  InvalidUiSchemaError,
+} from '@ea-workbench/json-forms-core';
+import {
+  ACTIONS_REQUIRING_SCHEMA,
+  buildJsonFormsPrompt,
+  parseActionResult,
+} from '@ea-workbench/json-forms-ai';
 import { AIPreferencesSchema } from '@ea-workbench/shared-schema';
 import {
   loadPreferences,
@@ -260,7 +273,178 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     const { actionId, input } = request.body;
     const workspacePath = (app as any).workspacePath as string;
 
-    // Build prompt based on action prefix
+    // ---- json-forms.* — handled inline (load active schema, build prompt,
+    // run AI, parse + validate the structured result, return).
+    if (actionId.startsWith('json-forms.')) {
+      // 1. Validate selection requirement.
+      const requiresSchema = ACTIONS_REQUIRING_SCHEMA.has(actionId);
+      const schemaId =
+        typeof input?.schemaId === 'string' && input.schemaId.length > 0
+          ? (input.schemaId as string)
+          : null;
+      if (requiresSchema && !schemaId) {
+        return reply
+          .code(400)
+          .send(
+            failure('Select a form schema first to run this action.', 'JSON_FORMS_NO_SELECTION'),
+          );
+      }
+
+      // 2. Load active schema if required.
+      let activeSchema: { title: string; jsonSchema: any; uiSchema: any } | undefined;
+      if (requiresSchema && schemaId) {
+        try {
+          const store = new FormStore(workspacePath);
+          const def = store.getSchema(schemaId);
+          activeSchema = {
+            title: def.meta.title,
+            jsonSchema: def.jsonSchema,
+            uiSchema: def.uiSchema,
+          };
+        } catch (err) {
+          if (err instanceof FormNotFoundError) {
+            return reply.code(404).send(failure(err.message, 'NOT_FOUND'));
+          }
+          const message = err instanceof Error ? err.message : 'Failed to load schema';
+          return reply.code(500).send(failure(message, 'ARTIFACT_LOAD_FAILED'));
+        }
+      }
+
+      // 3. Build prompt.
+      let promptText: string;
+      try {
+        promptText = buildJsonFormsPrompt({
+          actionId,
+          activeSchema,
+          userInput: typeof input?.context === 'string' ? (input.context as string) : undefined,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to build prompt';
+        return reply.code(400).send(failure(message, 'PROMPT_BUILD_FAILED'));
+      }
+
+      // 4. Execute the AI action.
+      let aiResult: { content: string; structured: unknown };
+      try {
+        aiResult = await executeAIAction(promptText, workspacePath);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'AI action failed';
+        return reply.code(500).send(failure(message, 'AI_EXECUTION_FAILED'));
+      }
+
+      // 5. Server-side parse the structured response with the action's Zod schema.
+      const parsed = parseActionResult(actionId, aiResult.structured);
+      if (!parsed.ok) {
+        return reply.code(422).send({
+          ok: false,
+          error: parsed.error,
+          code: 'AI_PARSE_FAILED',
+          details: { issues: parsed.issues, rawContent: aiResult.content },
+        });
+      }
+
+      // 6. For any output containing a JSON Schema or UI Schema, validate it.
+      const data = parsed.data as Record<string, unknown>;
+      const proposedJsonSchema = (data.jsonSchema ?? null) as Record<string, unknown> | null;
+      const proposedUiSchema = (data.uiSchema ?? null) as Record<string, unknown> | null;
+      const validationErrors: { type: string; message: string }[] = [];
+      if (proposedJsonSchema) {
+        try {
+          compileSchema(proposedJsonSchema);
+        } catch (err) {
+          validationErrors.push({
+            type: 'jsonSchema',
+            message:
+              err instanceof InvalidJsonSchemaError
+                ? err.message
+                : err instanceof Error
+                  ? err.message
+                  : String(err),
+          });
+        }
+      }
+      if (proposedUiSchema) {
+        // For improve_layout the jsonSchema is unchanged on the wire — pair the
+        // proposed uiSchema with the *active* jsonSchema so scope resolution
+        // catches dropped or mistyped controls.
+        const schemaForUiCheck =
+          proposedJsonSchema ??
+          (actionId === 'json-forms.improve_layout' ? activeSchema?.jsonSchema : undefined);
+        try {
+          validateUiSchema(proposedUiSchema, schemaForUiCheck);
+        } catch (err) {
+          validationErrors.push({
+            type: 'uiSchema',
+            message:
+              err instanceof InvalidUiSchemaError
+                ? err.message
+                : err instanceof Error
+                  ? err.message
+                  : String(err),
+          });
+        }
+      }
+
+      // 6b. For improve_layout (and refine, which can also reorganise layouts),
+      // verify the proposed uiSchema still references every Control scope that
+      // existed in the active uiSchema. Refactoring layout must NOT silently
+      // drop fields.
+      if (
+        validationErrors.length === 0 &&
+        proposedUiSchema &&
+        activeSchema?.uiSchema &&
+        (actionId === 'json-forms.improve_layout' || actionId === 'json-forms.refine_schema')
+      ) {
+        const before = new Set(collectControlScopes(activeSchema.uiSchema));
+        const after = new Set(collectControlScopes(proposedUiSchema));
+
+        // For improve_layout the property set is unchanged, so a dropped scope
+        // is always an error. For refine_schema the AI may legitimately remove
+        // a field — only flag scopes whose underlying property STILL exists in
+        // the (proposed or unchanged) jsonSchema.
+        const referenceJsonSchema = proposedJsonSchema ?? activeSchema?.jsonSchema;
+        const referenceProps =
+          referenceJsonSchema && typeof referenceJsonSchema === 'object'
+            ? ((referenceJsonSchema as { properties?: Record<string, unknown> }).properties ?? {})
+            : {};
+
+        const dropped: string[] = [];
+        for (const scope of before) {
+          if (after.has(scope)) continue;
+          if (actionId === 'json-forms.improve_layout') {
+            dropped.push(scope);
+          } else {
+            // refine: only complain if the property is still present in the
+            // referenced jsonSchema (i.e. it was kept but its control was lost).
+            const segments = scope.slice(2).split('/').filter(Boolean);
+            const propName = segments[segments.length - 1];
+            if (propName && propName in referenceProps) {
+              dropped.push(scope);
+            }
+          }
+        }
+        if (dropped.length > 0) {
+          validationErrors.push({
+            type: 'uiSchema',
+            message: `Proposed UI schema is missing controls for: ${dropped.join(', ')}`,
+          });
+        }
+      }
+
+      if (validationErrors.length > 0) {
+        return reply.code(422).send({
+          ok: false,
+          error: 'AI output failed schema validation',
+          code: 'AI_INVALID_SCHEMA',
+          details: { errors: validationErrors, proposed: parsed.data },
+        });
+      }
+
+      // 7. Success — return the parsed structured payload alongside content for debugging.
+      return success({ content: aiResult.content, structured: parsed.data });
+    }
+
+    // ---- bcm.* / md.* / fallback (existing dispatch).
     let promptText: string;
     try {
       if (actionId.startsWith('bcm.') && input.modelId) {

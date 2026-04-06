@@ -16,6 +16,9 @@
     { "path": "packages/editor-ui" },
     { "path": "packages/help-core" },
     { "path": "packages/help-ui" },
+    { "path": "packages/json-forms-ai" },
+    { "path": "packages/json-forms-core" },
+    { "path": "packages/json-forms-ui" },
     { "path": "packages/shell-ui" },
     { "path": "packages/runtime" },
     { "path": "packages/cli" }

@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w packages/shared-schema -w packages/tool-api -w packages/acp-core -w packages/git-abstraction -w packages/export-core -w packages/bcm-core -w packages/chat-core -w packages/editor-core -w packages/help-core && npm run build -w packages/acp-copilot -w packages/bcm-ai -w packages/runtime && npm run build -w packages/shell-ui -w packages/bcm-ui -w packages/chat-ui -w packages/editor-ui -w packages/help-ui && npm run build -w packages/cli",
+    "build": "npm run build -w packages/shared-schema -w packages/tool-api -w packages/acp-core -w packages/git-abstraction -w packages/export-core -w packages/bcm-core -w packages/chat-core -w packages/editor-core -w packages/help-core -w packages/json-forms-ai -w packages/json-forms-core && npm run build -w packages/acp-copilot -w packages/bcm-ai -w packages/runtime && npm run build -w packages/shell-ui -w packages/bcm-ui -w packages/chat-ui -w packages/editor-ui -w packages/help-ui -w packages/json-forms-ui && npm run build -w packages/cli",
     "dev": "npm run dev --workspace=packages/cli",
     "test": "vitest run",
     "test:watch": "vitest",

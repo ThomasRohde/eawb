@@ -11,6 +11,7 @@ export const PATHS = {
   REVIEWS_DIR: 'architecture/reviews',
   EXPORTS_DIR: 'architecture/exports',
   MARKDOWN_DIR: 'architecture/markdown-editor/docs',
+  JSON_FORMS_DIR: 'architecture/json-forms',
   GITHUB_DIR: '.github',
   GITHUB_INSTRUCTIONS_DIR: '.github/instructions',
   GITHUB_AGENTS_DIR: '.github/agents',
@@ -30,6 +31,7 @@ export const ARCHITECTURE_DIRS = [
   PATHS.REVIEWS_DIR,
   PATHS.EXPORTS_DIR,
   PATHS.MARKDOWN_DIR,
+  PATHS.JSON_FORMS_DIR,
 ] as const;
 
 export const GITHUB_DIRS = [

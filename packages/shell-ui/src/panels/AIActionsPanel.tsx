@@ -36,6 +36,7 @@ import {
 import { useLayoutStore } from '../store/layout-store.js';
 import { useBcmActionProvider } from '@ea-workbench/bcm-ui';
 import { useEditorActionProvider } from '@ea-workbench/editor-ui';
+import { useJsonFormsActionProvider } from '@ea-workbench/json-forms-ui';
 import type {
   AIActionProvider,
   AIActionUIDefinition,
@@ -106,8 +107,9 @@ export function AIActionsPanel() {
   // Providers are hooks — must call unconditionally
   const bcmProvider = useBcmActionProvider();
   const editorProvider = useEditorActionProvider();
+  const jsonFormsProvider = useJsonFormsActionProvider();
 
-  const providers: AIActionProvider[] = [bcmProvider, editorProvider];
+  const providers: AIActionProvider[] = [bcmProvider, editorProvider, jsonFormsProvider];
   const providerMap = new Map(providers.map((p) => [p.toolId, p]));
 
   // Determine active provider from tool context

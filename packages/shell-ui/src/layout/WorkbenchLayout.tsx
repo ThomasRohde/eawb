@@ -14,6 +14,7 @@ import { AIActionsPanel } from '../panels/AIActionsPanel.js';
 import { ChatPanel } from '@ea-workbench/chat-ui';
 import { MarkdownEditorPanel, useEditorStore } from '@ea-workbench/editor-ui';
 import { HelpPanel } from '@ea-workbench/help-ui';
+import { FormSchemaDesignerPanel, FormFillerPanel } from '@ea-workbench/json-forms-ui';
 import { VersionHistoryPanel } from '../panels/VersionHistoryPanel.js';
 import { SettingsPanel } from '../panels/SettingsPanel.js';
 import { useLayoutStore, layoutStorage, PANEL_TO_TOOL } from '../store/layout-store.js';
@@ -49,6 +50,8 @@ const components: Record<string, any> = {
   'version-history': withErrorBoundary(VersionHistoryPanel),
   'help-panel': withErrorBoundary(HelpPanel),
   'settings-panel': withErrorBoundary(SettingsPanel),
+  'json-forms-designer': withErrorBoundary(FormSchemaDesignerPanel),
+  'json-forms-filler': withErrorBoundary(FormFillerPanel),
 };
 
 export function WorkbenchLayout() {

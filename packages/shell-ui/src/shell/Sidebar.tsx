@@ -75,6 +75,7 @@ const TOOL_PANELS: Record<string, string> = {
   'bcm-studio': 'bcm-tree',
   'acp-chat': 'chat-panel',
   'markdown-editor': 'md-editor',
+  'json-forms': 'json-forms-designer',
   help: 'help-panel',
 };
 
