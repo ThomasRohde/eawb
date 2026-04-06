@@ -17,9 +17,17 @@ import {
   resolvePermission,
   listAISessions,
   loadAISession,
+  getActiveSessionIds,
 } from '../ai-orchestrator.js';
 import { ModelStore } from '@ea-workbench/bcm-core';
 import { DocumentStore } from '@ea-workbench/editor-core';
+import { AIPreferencesSchema } from '@ea-workbench/shared-schema';
+import {
+  loadPreferences,
+  savePreferences,
+  updateCachedOptions,
+  withPreferenceLock,
+} from '../ai-preferences.js';
 
 /**
  * Build a prompt for a BCM AI action based on the action ID, model data, and input.
@@ -382,6 +390,62 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       return success({ optionId: request.body.optionId });
     },
   );
+
+  // --- AI Preferences ---
+
+  app.get('/ai/preferences', async () => {
+    const workspacePath = (app as any).workspacePath as string;
+    return success(loadPreferences(workspacePath));
+  });
+
+  app.put<{ Body: Record<string, unknown> }>('/ai/preferences', async (request) => {
+    const workspacePath = (app as any).workspacePath as string;
+    const validated = await withPreferenceLock(workspacePath, () => {
+      const current = loadPreferences(workspacePath);
+      // Deep-merge configOverrides to prevent concurrent edits from erasing each other
+      const body = request.body;
+      let mergedOverrides = current.configOverrides;
+      if (body.configOverrides && typeof body.configOverrides === 'object') {
+        mergedOverrides = { ...current.configOverrides };
+        for (const [k, v] of Object.entries(body.configOverrides as Record<string, unknown>)) {
+          if (v === null) {
+            delete mergedOverrides[k];
+          } else {
+            mergedOverrides[k] = v;
+          }
+        }
+      }
+      const merged = { ...current, ...body, configOverrides: mergedOverrides };
+      const result = AIPreferencesSchema.parse(merged);
+      savePreferences(workspacePath, result);
+      return result;
+    });
+    return success(validated);
+  });
+
+  app.post('/ai/preferences/refresh', async (_request, reply) => {
+    const workspacePath = (app as any).workspacePath as string;
+    try {
+      // Reuse an existing live session to avoid creating orphan provider sessions
+      const activeIds = getActiveSessionIds();
+      const sessionId = activeIds.length > 0 ? activeIds[0] : null;
+      if (!sessionId) {
+        return reply
+          .code(409)
+          .send(
+            failure(
+              'No active AI session. Start a conversation first, then refresh.',
+              'NO_ACTIVE_SESSION',
+            ),
+          );
+      }
+      const prefs = await updateCachedOptions(workspacePath, sessionId);
+      return success(prefs);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to refresh options';
+      return reply.code(500).send(failure(message, 'REFRESH_FAILED'));
+    }
+  });
 
   // --- Permissions ---
 

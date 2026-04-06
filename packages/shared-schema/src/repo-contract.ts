@@ -14,6 +14,7 @@ export const PATHS = {
   GITHUB_DIR: '.github',
   GITHUB_INSTRUCTIONS_DIR: '.github/instructions',
   GITHUB_AGENTS_DIR: '.github/agents',
+  PREFERENCES_FILE: '.ea-workbench/preferences.json',
 } as const;
 
 export const WORKBENCH_DIRS = [

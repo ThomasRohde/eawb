@@ -21,6 +21,7 @@ import {
   DocumentText24Regular,
   Apps24Regular,
   ArrowReset24Regular,
+  Settings24Regular,
   WeatherSunny24Regular,
   WeatherMoon24Regular,
   DesktopSync24Regular,
@@ -174,6 +175,14 @@ export function Sidebar() {
       <div className={styles.spacer} />
 
       <div className={styles.footer}>
+        <Button
+          appearance="subtle"
+          icon={<Settings24Regular />}
+          size="small"
+          onClick={() => openPanel('settings-panel')}
+        >
+          Settings
+        </Button>
         <Button
           appearance="subtle"
           icon={<ArrowReset24Regular />}

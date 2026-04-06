@@ -255,6 +255,10 @@ export class CopilotACPAdapter implements IACPAdapter {
     this.sessions.delete(sessionId);
   }
 
+  getActiveSessionIds(): string[] {
+    return [...this.sessions.keys()];
+  }
+
   // ---------------------------------------------------------------------------
   // Session history
   // ---------------------------------------------------------------------------

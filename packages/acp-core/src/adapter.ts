@@ -43,6 +43,8 @@ export interface IACPAdapter {
   // --- Sessions ---
   createSession(opts: SessionOptions): Promise<ACPSession>;
   destroySession(sessionId: string): Promise<void>;
+  /** Return IDs of locally tracked active sessions (no remote calls). */
+  getActiveSessionIds(): string[];
 
   // --- Session events ---
   setSessionEventHandler(handler: ACPSessionEventCallback | null): void;

@@ -20,6 +20,7 @@ const ALL_PANELS: PanelDef[] = [
   { id: 'md-editor', component: 'md-editor', title: 'Editor' },
   { id: 'version-history', component: 'version-history', title: 'Version History' },
   { id: 'help-panel', component: 'help-panel', title: 'Help' },
+  { id: 'settings-panel', component: 'settings-panel', title: 'Settings' },
 ];
 
 const LAYOUT_KEY = 'eawb_layout';

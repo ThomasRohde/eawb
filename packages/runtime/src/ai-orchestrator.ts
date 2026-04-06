@@ -12,6 +12,7 @@ import type {
 import { EMPTY_CAPABILITIES } from '@ea-workbench/acp-core';
 import { CopilotACPAdapter } from '@ea-workbench/acp-copilot';
 import { broadcast } from './ws.js';
+import { applyPreferences, maybeCacheOptions } from './ai-preferences.js';
 
 let adapter: IACPAdapter | null = null;
 
@@ -106,6 +107,10 @@ export async function createAISession(workingDirectory?: string): Promise<string
     throw new Error('AI provider not available. Run "eawb doctor" to check Copilot CLI status.');
   }
   const session = await a.createSession({ workingDirectory });
+  if (workingDirectory) {
+    await applyPreferences(session.id, workingDirectory);
+    await maybeCacheOptions(workingDirectory, session.id);
+  }
   return session.id;
 }
 
@@ -166,6 +171,10 @@ export async function conversationalPrompt(
   if (!sessionId) {
     const session = await a.createSession({ workingDirectory });
     sessionId = session.id;
+    if (workingDirectory) {
+      await applyPreferences(sessionId, workingDirectory);
+      await maybeCacheOptions(workingDirectory, sessionId);
+    }
   }
 
   const result = await a.prompt(sessionId, input, (update) => {
@@ -197,6 +206,10 @@ export async function simplePrompt(
   }
 
   const session = await a.createSession({ workingDirectory });
+  if (workingDirectory) {
+    await applyPreferences(session.id, workingDirectory);
+    await maybeCacheOptions(workingDirectory, session.id);
+  }
 
   try {
     const result = await a.prompt(session.id, input, (update) => {
@@ -229,6 +242,10 @@ export async function executeAIAction(
 
   const session = await a.createSession({ workingDirectory });
   const sessionId = session.id;
+  if (workingDirectory) {
+    await applyPreferences(sessionId, workingDirectory);
+    await maybeCacheOptions(workingDirectory, sessionId);
+  }
 
   broadcast({
     type: 'ai:progress',
@@ -273,6 +290,11 @@ export async function cancelAIPrompt(sessionId: string): Promise<void> {
 export async function destroyAISession(sessionId: string): Promise<void> {
   if (!adapter) return;
   await adapter.destroySession(sessionId);
+}
+
+export function getActiveSessionIds(): string[] {
+  if (!adapter) return [];
+  return adapter.getActiveSessionIds();
 }
 
 export async function getSessionModes(

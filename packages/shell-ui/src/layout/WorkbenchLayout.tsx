@@ -15,6 +15,7 @@ import { ChatPanel } from '@ea-workbench/chat-ui';
 import { MarkdownEditorPanel, useEditorStore } from '@ea-workbench/editor-ui';
 import { HelpPanel } from '@ea-workbench/help-ui';
 import { VersionHistoryPanel } from '../panels/VersionHistoryPanel.js';
+import { SettingsPanel } from '../panels/SettingsPanel.js';
 import { useLayoutStore, layoutStorage, PANEL_TO_TOOL } from '../store/layout-store.js';
 import { useThemeStore } from '../store/theme-store.js';
 import { ErrorBoundary } from '../ErrorBoundary.js';
@@ -47,6 +48,7 @@ const components: Record<string, any> = {
   'md-editor': withErrorBoundary(MarkdownEditorPanel),
   'version-history': withErrorBoundary(VersionHistoryPanel),
   'help-panel': withErrorBoundary(HelpPanel),
+  'settings-panel': withErrorBoundary(SettingsPanel),
 };
 
 export function WorkbenchLayout() {
