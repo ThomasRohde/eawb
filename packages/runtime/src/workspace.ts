@@ -45,15 +45,27 @@ export async function getWorkspaceStatus(dirPath: string): Promise<WorkspaceStat
   };
 }
 
+export interface InitializeOptions {
+  remoteUrl?: string;
+}
+
 export async function initializeWorkbench(
   dirPath: string,
   name?: string,
+  options?: InitializeOptions,
 ): Promise<WorkbenchConfig> {
   // Initialize git if needed
   const gitService = new GitService();
-  const isGitRepo = await gitService.isRepo(dirPath);
-  if (!isGitRepo) {
-    await gitService.init(dirPath);
+  await gitService.init(dirPath);
+
+  // Configure remote up front if requested. We never probe reachability —
+  // first sync surfaces auth/network issues.
+  if (options?.remoteUrl) {
+    try {
+      await gitService.addRemote('origin', options.remoteUrl);
+    } catch {
+      // non-fatal — user can re-add from the UI
+    }
   }
 
   // Create directory structure
@@ -75,6 +87,32 @@ export async function initializeWorkbench(
     fs.writeFileSync(gitignorePath, `${gitignoreEntry}\n`);
   }
 
+  // On Windows, write a .gitattributes that normalizes line endings to LF.
+  // Without this, `core.autocrlf` differences between contributors cause
+  // every pull to mark text files as modified, producing spurious checkpoints
+  // and noisy conflicts. We only write it on Windows because that is where
+  // the CRLF/LF mismatch originates; the file content itself is cross-platform
+  // and benefits everyone once committed.
+  if (process.platform === 'win32') {
+    const gitattributesPath = path.join(dirPath, '.gitattributes');
+    if (!fs.existsSync(gitattributesPath)) {
+      const gitattributes =
+        '* text=auto eol=lf\n' +
+        '*.bcm.jsonl text eol=lf\n' +
+        '*.md text eol=lf\n' +
+        '*.json text eol=lf\n' +
+        '*.jsonl text eol=lf\n' +
+        '*.yml text eol=lf\n' +
+        '*.yaml text eol=lf\n' +
+        '*.png binary\n' +
+        '*.jpg binary\n' +
+        '*.jpeg binary\n' +
+        '*.gif binary\n' +
+        '*.svg text eol=lf\n';
+      fs.writeFileSync(gitattributesPath, gitattributes);
+    }
+  }
+
   // Create config
   const config: WorkbenchConfig = {
     version: '1.0',
@@ -93,6 +131,7 @@ export async function initializeWorkbench(
   const createdFiles = [
     PATHS.CONFIG_FILE,
     '.gitignore',
+    '.gitattributes',
     `${PATHS.GITHUB_DIR}/copilot-instructions.md`,
     `${PATHS.GITHUB_AGENTS_DIR}/bcm-modeler.md`,
     `${PATHS.GITHUB_AGENTS_DIR}/bcm-reviewer.md`,

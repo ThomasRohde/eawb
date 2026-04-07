@@ -76,31 +76,4 @@ export async function checkpointRoutes(app: FastifyInstance): Promise<void> {
       return failure(message, 'COMPARE_FAILED');
     }
   });
-
-  app.get('/has-remote', async () => {
-    try {
-      const git = await getGit();
-      const hasRemote = await git.hasRemote();
-      return success({ hasRemote });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      return failure(message, 'HAS_REMOTE_FAILED');
-    }
-  });
-
-  app.post<{ Body: { remote?: string; branch?: string } }>('/push', async (request) => {
-    try {
-      const git = await getGit();
-      const result = await git.push(request.body.remote, request.body.branch);
-      broadcast({
-        type: 'push:complete',
-        remote: result.remote,
-        branch: result.branch,
-      });
-      return success(result);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      return failure(message, 'PUSH_FAILED');
-    }
-  });
 }

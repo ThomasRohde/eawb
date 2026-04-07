@@ -18,7 +18,9 @@
   },
   "dependencies": {
     "@ea-workbench/acp-copilot": "*",
+    "@ea-workbench/git-abstraction": "*",
     "@ea-workbench/runtime": "*",
+    "@ea-workbench/shared-schema": "*",
     "@ea-workbench/shell-ui": "*",
     "commander": "^13.0.0",
     "@inquirer/prompts": "^7.0.0",

@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { simpleGit, type SimpleGit } from 'simple-git';
 import type {
   IGitService,
@@ -6,6 +8,12 @@ import type {
   CompareResult,
   RestoreOptions,
   PushResult,
+  RemoteInfo,
+  RemoteStatus,
+  PullOptions,
+  PullResult,
+  FetchResult,
+  CloneOptions,
 } from './types.js';
 
 export class GitService implements IGitService {
@@ -45,6 +53,28 @@ export class GitService implements IGitService {
     this.ensureInitialized();
     const filesToAdd = paths ?? ['.'];
     await this.git!.add(filesToAdd);
+    const result = await this.git!.commit(message);
+    const log = await this.git!.log({ maxCount: 1 });
+    const latest = log.latest!;
+    return {
+      id: result.commit || latest.hash,
+      message: latest.message,
+      timestamp: latest.date,
+      author: latest.author_name,
+    };
+  }
+
+  /**
+   * Commit only modifications to already-tracked files. `git add -u` stages
+   * updates and deletes for tracked files but never adds new (untracked) ones,
+   * so the user's scratch files and uncommitted secrets are never silently
+   * published by the auto-checkpoint flow.
+   */
+  async createTrackedCheckpoint(message: string): Promise<Checkpoint | null> {
+    this.ensureInitialized();
+    await this.git!.add(['-u']);
+    const status = await this.git!.status();
+    if (status.staged.length === 0) return null;
     const result = await this.git!.commit(message);
     const log = await this.git!.log({ maxCount: 1 });
     const latest = log.latest!;
@@ -135,7 +165,8 @@ export class GitService implements IGitService {
     this.ensureInitialized();
     const targetRemote = remote ?? 'origin';
     const targetBranch = branch ?? (await this.git!.revparse(['--abbrev-ref', 'HEAD']));
-    await this.git!.push(targetRemote, targetBranch);
+    // -u sets upstream on first push so future status is meaningful
+    await this.git!.push(targetRemote, targetBranch, ['-u']);
     return { pushed: true, remote: targetRemote, branch: targetBranch };
   }
 
@@ -143,6 +174,245 @@ export class GitService implements IGitService {
     this.ensureInitialized();
     const remotes = await this.git!.getRemotes();
     return remotes.length > 0;
+  }
+
+  // ---------------------------------------------------------------------
+  // Remote management
+  // ---------------------------------------------------------------------
+
+  async addRemote(name: string, url: string): Promise<void> {
+    this.ensureInitialized();
+    const existing = await this.git!.getRemotes(true);
+    const match = existing.find((r) => r.name === name);
+    if (match) {
+      await this.git!.remote(['set-url', name, url]);
+    } else {
+      await this.git!.addRemote(name, url);
+    }
+  }
+
+  async setRemoteUrl(name: string, url: string): Promise<void> {
+    this.ensureInitialized();
+    await this.git!.remote(['set-url', name, url]);
+  }
+
+  async removeRemote(name: string): Promise<void> {
+    this.ensureInitialized();
+    await this.git!.removeRemote(name);
+  }
+
+  async getRemotes(): Promise<RemoteInfo[]> {
+    this.ensureInitialized();
+    const remotes = await this.git!.getRemotes(true);
+    return remotes.filter((r) => r.refs?.fetch).map((r) => ({ name: r.name, url: r.refs.fetch }));
+  }
+
+  async getRemoteUrl(name: string = 'origin'): Promise<string | null> {
+    const remotes = await this.getRemotes();
+    return remotes.find((r) => r.name === name)?.url ?? null;
+  }
+
+  // ---------------------------------------------------------------------
+  // Sync operations
+  // ---------------------------------------------------------------------
+
+  async fetch(remote: string = 'origin'): Promise<FetchResult> {
+    this.ensureInitialized();
+    await this.git!.fetch(remote);
+    return { fetched: true, remote };
+  }
+
+  async pull(
+    remote: string = 'origin',
+    branch?: string,
+    options?: PullOptions,
+  ): Promise<PullResult> {
+    this.ensureInitialized();
+    const targetBranch = branch ?? (await this.git!.revparse(['--abbrev-ref', 'HEAD']));
+    const rebase = options?.rebase ?? true;
+    const autostash = options?.autostash ?? true;
+
+    const flags: Record<string, string | null> = {};
+    if (rebase) flags['--rebase'] = 'true';
+    if (autostash) flags['--autostash'] = null;
+
+    const result = await this.git!.pull(remote, targetBranch, flags);
+    const filesChanged = result.files?.length ?? 0;
+    const summary =
+      result.summary && typeof result.summary === 'object'
+        ? `${result.summary.changes ?? 0} changes, +${result.summary.insertions ?? 0} -${result.summary.deletions ?? 0}`
+        : '';
+    return {
+      pulled: true,
+      remote,
+      branch: targetBranch,
+      filesChanged,
+      summary,
+    };
+  }
+
+  async getRemoteStatus(options?: { fetch?: boolean }): Promise<RemoteStatus> {
+    this.ensureInitialized();
+
+    const remotes = await this.getRemotes();
+    if (remotes.length === 0) {
+      return {
+        hasRemote: false,
+        remote: null,
+        remoteUrl: null,
+        branch: null,
+        upstream: null,
+        hasUpstream: false,
+        ahead: 0,
+        behind: 0,
+        diverged: false,
+        lastFetchedAt: null,
+      };
+    }
+
+    const origin = remotes.find((r) => r.name === 'origin') ?? remotes[0];
+
+    let branch: string | null = null;
+    try {
+      branch = (await this.git!.revparse(['--abbrev-ref', 'HEAD'])).trim();
+      if (branch === 'HEAD') branch = null; // detached
+    } catch {
+      branch = null;
+    }
+
+    let upstream: string | null = null;
+    try {
+      upstream = (
+        await this.git!.revparse(['--abbrev-ref', '--symbolic-full-name', '@{u}'])
+      ).trim();
+    } catch {
+      upstream = null;
+    }
+
+    if (options?.fetch) {
+      try {
+        await this.fetch(origin.name);
+      } catch {
+        // surface ahead/behind from cached refs even if fetch fails
+      }
+    }
+
+    let ahead = 0;
+    let behind = 0;
+    if (upstream) {
+      try {
+        const out = await this.git!.raw([
+          'rev-list',
+          '--left-right',
+          '--count',
+          `${upstream}...HEAD`,
+        ]);
+        // git outputs "<behind>\t<ahead>"
+        const parts = out.trim().split(/\s+/);
+        behind = parseInt(parts[0] ?? '0', 10) || 0;
+        ahead = parseInt(parts[1] ?? '0', 10) || 0;
+      } catch {
+        // ignore
+      }
+    }
+
+    let lastFetchedAt: string | null = null;
+    try {
+      const fetchHead = path.join(this.repoPath!, '.git', 'FETCH_HEAD');
+      if (fs.existsSync(fetchHead)) {
+        lastFetchedAt = fs.statSync(fetchHead).mtime.toISOString();
+      }
+    } catch {
+      // ignore
+    }
+
+    return {
+      hasRemote: true,
+      remote: origin.name,
+      remoteUrl: origin.url,
+      branch,
+      upstream,
+      hasUpstream: upstream !== null,
+      ahead,
+      behind,
+      diverged: ahead > 0 && behind > 0,
+      lastFetchedAt,
+    };
+  }
+
+  // ---------------------------------------------------------------------
+  // Clone (no prior init required — uses a fresh simpleGit instance)
+  // ---------------------------------------------------------------------
+
+  async clone(url: string, dest: string, options?: CloneOptions): Promise<void> {
+    const args: string[] = [];
+    if (options?.depth && options.depth > 0) {
+      args.push('--depth', String(options.depth));
+    }
+    await simpleGit().clone(url, dest, args);
+  }
+
+  // ---------------------------------------------------------------------
+  // Rebase / merge state
+  // ---------------------------------------------------------------------
+
+  async abortRebase(): Promise<void> {
+    this.ensureInitialized();
+    try {
+      await this.git!.raw(['rebase', '--abort']);
+    } catch {
+      // already aborted or not in rebase
+    }
+  }
+
+  async isRebasing(): Promise<boolean> {
+    this.ensureInitialized();
+    try {
+      const gitDir = path.join(this.repoPath!, '.git');
+      return (
+        fs.existsSync(path.join(gitDir, 'rebase-merge')) ||
+        fs.existsSync(path.join(gitDir, 'rebase-apply'))
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  async isMerging(): Promise<boolean> {
+    this.ensureInitialized();
+    try {
+      return fs.existsSync(path.join(this.repoPath!, '.git', 'MERGE_HEAD'));
+    } catch {
+      return false;
+    }
+  }
+
+  async getConflictedFiles(): Promise<string[]> {
+    this.ensureInitialized();
+    try {
+      const status = await this.git!.status();
+      return status.conflicted ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  async remoteBranchExists(remote: string, branch: string): Promise<boolean> {
+    this.ensureInitialized();
+    // Note: simple-git's `raw()` does NOT throw on git's silent exit-1 from
+    // `rev-parse --verify --quiet`; it returns an empty string. We therefore
+    // check both: a thrown error AND an empty result mean "not found".
+    try {
+      const out = await this.git!.raw([
+        'rev-parse',
+        '--verify',
+        '--quiet',
+        `refs/remotes/${remote}/${branch}`,
+      ]);
+      return out.trim().length > 0;
+    } catch {
+      return false;
+    }
   }
 
   private ensureInitialized(): void {

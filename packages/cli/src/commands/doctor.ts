@@ -1,10 +1,11 @@
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { discoverCopilot } from '@ea-workbench/acp-copilot';
 import { isWorkbenchInitialized } from '@ea-workbench/runtime';
+import { GitService } from '@ea-workbench/git-abstraction';
 
 interface Check {
   name: string;
-  status: 'ok' | 'warn' | 'fail';
+  status: 'ok' | 'warn' | 'fail' | 'info';
   detail: string;
 }
 
@@ -62,14 +63,65 @@ export async function doctorCommand(): Promise<void> {
     detail: initialized ? 'Initialized' : 'Not initialized — run "eawb init"',
   });
 
+  // Remote configuration & reachability (only meaningful inside a workspace)
+  if (initialized) {
+    const git = new GitService();
+    let remoteUrl: string | null = null;
+    try {
+      await git.init(cwd);
+      remoteUrl = await git.getRemoteUrl('origin');
+    } catch {
+      remoteUrl = null;
+    }
+
+    if (remoteUrl) {
+      checks.push({
+        name: 'Git remote',
+        status: 'ok',
+        detail: remoteUrl,
+      });
+
+      try {
+        // execFileSync invokes git directly via spawn — remoteUrl is argv[3],
+        // never interpolated into a shell. The built-in `timeout` option sends
+        // SIGTERM after 3s for unreachable remotes.
+        execFileSync('git', ['ls-remote', '--exit-code', remoteUrl], {
+          cwd,
+          stdio: 'pipe',
+          timeout: 3000,
+          killSignal: 'SIGTERM',
+        });
+        checks.push({ name: 'Remote reachable', status: 'ok', detail: 'Reachable' });
+      } catch {
+        checks.push({
+          name: 'Remote reachable',
+          status: 'info',
+          detail: 'Could not reach remote (offline or auth required)',
+        });
+      }
+    } else {
+      checks.push({
+        name: 'Git remote',
+        status: 'warn',
+        detail: 'No remote configured — sync features disabled until you connect one',
+      });
+    }
+  }
+
   // Output
   console.log('\n  EA Workbench Doctor\n');
 
-  const icons = { ok: '✓', warn: '!', fail: '✗' };
+  const icons = { ok: '✓', warn: '!', fail: '✗', info: 'i' };
   for (const check of checks) {
     const icon = icons[check.status];
     const color =
-      check.status === 'ok' ? '\x1b[32m' : check.status === 'warn' ? '\x1b[33m' : '\x1b[31m';
+      check.status === 'ok'
+        ? '\x1b[32m'
+        : check.status === 'warn'
+          ? '\x1b[33m'
+          : check.status === 'info'
+            ? '\x1b[36m'
+            : '\x1b[31m';
     console.log(`  ${color}${icon}\x1b[0m ${check.name}: ${check.detail}`);
   }
 

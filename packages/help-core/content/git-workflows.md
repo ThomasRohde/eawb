@@ -124,7 +124,9 @@ git tag -a v2.0-target-state -m "Target state model for 2027 strategy"
 git tag -l "v*"
 ```
 
-## Handling Merge Conflicts
+## Resolving conflicts
+
+When the workbench Sync button reports a conflict, it has already **safely rolled back** the rebase — your local work is intact and the repository is in a clean state. You just need to reconcile the conflicting changes before clicking Sync again.
 
 JSONL files occasionally conflict when the same capability was edited on different branches:
 

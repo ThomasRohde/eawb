@@ -6,6 +6,7 @@ import websocket from '@fastify/websocket';
 import { healthRoutes } from './routes/health.js';
 import { workspaceRoutes } from './routes/workspace.js';
 import { checkpointRoutes } from './routes/checkpoints.js';
+import { gitRoutes } from './routes/git.js';
 import { toolRoutes } from './routes/tools.js';
 import { exportRoutes } from './routes/export.js';
 import { aiRoutes } from './routes/ai.js';
@@ -81,6 +82,7 @@ export async function createServer(opts: ServerOptions) {
   await app.register(healthRoutes, { prefix: '/api' });
   await app.register(workspaceRoutes, { prefix: '/api' });
   await app.register(checkpointRoutes, { prefix: '/api' });
+  await app.register(gitRoutes, { prefix: '/api' });
   await app.register(toolRoutes, { prefix: '/api' });
   await app.register(exportRoutes, { prefix: '/api' });
   await app.register(aiRoutes, { prefix: '/api' });

@@ -21,6 +21,32 @@ export const WsEventSchema = z.discriminatedUnion('type', [
     remote: z.string(),
     branch: z.string(),
   }),
+  z.object({
+    type: z.literal('fetch:complete'),
+    remote: z.string(),
+  }),
+  z.object({
+    type: z.literal('pull:complete'),
+    remote: z.string(),
+    branch: z.string(),
+    filesChanged: z.number(),
+  }),
+  z.object({
+    type: z.literal('sync:complete'),
+    remote: z.string(),
+    branch: z.string(),
+    pushed: z.boolean(),
+    filesChanged: z.number(),
+  }),
+  z.object({
+    type: z.literal('sync:conflict'),
+    remote: z.string(),
+    conflictedFiles: z.array(z.string()),
+  }),
+  z.object({
+    type: z.literal('remote:changed'),
+    url: z.string().nullable(),
+  }),
   // --- ACP-enriched events ---
   z.object({
     type: z.literal('ai:commands'),

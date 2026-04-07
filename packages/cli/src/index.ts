@@ -26,6 +26,8 @@ program
   .command('init')
   .description('Initialize a new workbench in the current directory')
   .option('-n, --name <name>', 'Workbench name')
+  .option('--remote <url>', 'GitHub remote URL to attach to the new workspace')
+  .option('--no-remote', 'Skip the interactive remote prompt')
   .action(initCommand);
 
 program.command('doctor').description('Check environment prerequisites').action(doctorCommand);
