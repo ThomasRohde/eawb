@@ -23,6 +23,45 @@ import { EMPTY_CAPABILITIES } from '@ea-workbench/acp-core';
 import { generateId, timestamp } from '@ea-workbench/shared-schema';
 import { discoverCopilot } from './discovery.js';
 
+/**
+ * Quote a single token for safe interpolation into a shell command line.
+ *
+ * Node 25 deprecates (`DEP0190`) the combination of `spawn(cmd, args, { shell: true })`
+ * because Node concatenates args with spaces and does *no* shell escaping —
+ * a classic command-injection trap. We still need shell mode to run
+ * cross-platform agent commands (Windows `.cmd`/`.bat` shims, pipes, etc.),
+ * so we quote each token ourselves and pass a single fully-formed command
+ * string with no separate args array.
+ *
+ * Two flavours:
+ * - **Windows `cmd.exe`**: wrap in double quotes and double any embedded
+ *   double quote; additionally escape the `cmd.exe` metacharacters
+ *   (`^`, `&`, `|`, `<`, `>`, `(`, `)`, `%`, `!`) with a leading caret so
+ *   they aren't interpreted by the shell before the quoted argument is
+ *   handed to the target executable.
+ * - **POSIX `sh`**: wrap in single quotes and close-reopen around any
+ *   embedded single quote (`'\''`), the standard trick.
+ */
+function shellQuoteToken(token: string, platform: NodeJS.Platform): string {
+  if (platform === 'win32') {
+    // Escape cmd.exe metacharacters *inside* the quoted string. `%` and `!`
+    // are variable expansion; the others are redirection / pipe / grouping.
+    const escaped = token.replace(/(["^&|<>()%!])/g, '^$1').replace(/"/g, '""');
+    return `"${escaped}"`;
+  }
+  // POSIX: single-quote everything, break out for embedded single quotes.
+  return `'${token.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * Join a command and its arguments into a single shell-ready command line,
+ * quoting each token for the host platform. See `shellQuoteToken`.
+ */
+function shellJoin(command: string, args: readonly string[]): string {
+  const parts = [command, ...args].map((t) => shellQuoteToken(t, process.platform));
+  return parts.join(' ');
+}
+
 /** Internal record linking our session to the ACP session and its state. */
 interface SessionRecord {
   session: ACPSession;
@@ -92,10 +131,19 @@ export class CopilotACPAdapter implements IACPAdapter {
         : ['--acp', '--stdio'];
     const command = discovery.method === 'npx' ? 'npx' : discovery.path;
 
-    this.childProcess = spawn(command, args, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      shell: process.platform === 'win32',
-    });
+    // On Windows we need `shell: true` to resolve `.cmd`/`.bat` shims like
+    // `npx.cmd`; on POSIX we can spawn directly. Either way, avoid the
+    // `shell:true + args` combination that Node 25 deprecates (DEP0190) by
+    // pre-joining into a quoted command line when shell mode is active.
+    const useShell = process.platform === 'win32';
+    this.childProcess = useShell
+      ? spawn(shellJoin(command, args), {
+          stdio: ['pipe', 'pipe', 'pipe'],
+          shell: true,
+        })
+      : spawn(command, args, {
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
 
     this.childProcess.stderr?.on('data', (data: Buffer) => {
       const msg = data.toString().trim();
@@ -632,7 +680,13 @@ export class CopilotACPAdapter implements IACPAdapter {
       }
     }
 
-    const child = spawn(params.command, params.args ?? [], {
+    // Pre-quote command + args into a single shell string so we can keep
+    // `shell: true` (needed for Windows `.cmd`/`.bat` shims) without
+    // tripping Node 25's DEP0190 — the deprecation specifically targets
+    // passing a non-empty args array alongside `shell: true`, because
+    // Node does no escaping when it concatenates them internally.
+    const commandLine = shellJoin(params.command, params.args ?? []);
+    const child = spawn(commandLine, {
       cwd,
       env,
       shell: true,
