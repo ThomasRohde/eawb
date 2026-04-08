@@ -17,7 +17,11 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          # Node 24+ required: the runtime uses `node:sqlite` (unflagged in
+          # Node 24, RC in Node 25). The CLI package.json declares
+          # `engines.node: >=24.0.0` and `engine-strict` is on in .npmrc, so
+          # older Node fails install with EBADENGINE.
+          node-version: 24
           cache: npm
 
       - name: Configure npm auth
