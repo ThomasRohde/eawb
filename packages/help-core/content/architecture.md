@@ -52,12 +52,12 @@ EA Workbench follows a **local-first, tool-based architecture**:
 
 ### Backend
 
-| Technology                  | Purpose                                        |
-| --------------------------- | ---------------------------------------------- |
-| **Fastify 5**               | HTTP server framework                          |
-| **SQLite** (better-sqlite3) | Local database for metadata                    |
-| **simple-git**              | Git operations abstraction                     |
-| **WebSocket**               | Real-time updates (streaming AI, file changes) |
+| Technology                 | Purpose                                        |
+| -------------------------- | ---------------------------------------------- |
+| **Fastify 5**              | HTTP server framework                          |
+| **SQLite** (`node:sqlite`) | Local database for metadata                    |
+| **simple-git**             | Git operations abstraction                     |
+| **WebSocket**              | Real-time updates (streaming AI, file changes) |
 
 ### Build System
 

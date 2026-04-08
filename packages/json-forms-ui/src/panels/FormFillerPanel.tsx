@@ -23,6 +23,7 @@ import {
 } from '@fluentui/react-components';
 import { ArrowReset24Regular, Send24Regular } from '@fluentui/react-icons';
 import { JsonForms } from '@jsonforms/react';
+import type { JsonSchema, UISchemaElement } from '@jsonforms/core';
 import { fluentCells, fluentRenderers } from '../renderers';
 import { useRecentSubmissions, useSchema, useSchemaList, useSubmitForm } from '../api/hooks';
 import { useFormsStore } from '../store/forms-store';
@@ -200,8 +201,8 @@ export function FormFillerPanel() {
             <Spinner size="small" />
           ) : schemaQ.data ? (
             <JsonForms
-              schema={schemaQ.data.jsonSchema}
-              uischema={schemaQ.data.uiSchema}
+              schema={schemaQ.data.jsonSchema as JsonSchema}
+              uischema={schemaQ.data.uiSchema as unknown as UISchemaElement}
               data={data}
               renderers={fluentRenderers}
               cells={fluentCells}

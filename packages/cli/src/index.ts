@@ -3,12 +3,16 @@ import { openCommand } from './commands/open.js';
 import { initCommand } from './commands/init.js';
 import { doctorCommand } from './commands/doctor.js';
 
+// Injected at build time from packages/cli/package.json#version via tsup's
+// `define` option — see tsup.config.ts.
+declare const __EAWB_VERSION__: string;
+
 const program = new Command();
 
 program
   .name('eawb')
   .description('EA Workbench — repo-native enterprise architecture workbench')
-  .version('0.1.0')
+  .version(__EAWB_VERSION__)
   .option('--debug', 'Enable verbose console output');
 
 program

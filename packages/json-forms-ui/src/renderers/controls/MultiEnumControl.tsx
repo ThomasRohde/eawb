@@ -94,7 +94,13 @@ function MultiEnumControlImpl(props: MultiEnumProps) {
         </TagPickerControl>
         <TagPickerList>
           {remaining.length === 0 ? (
-            <TagPickerOption key="__none" value="__none" disabled>
+            // Fluent UI v9's TagPickerOption doesn't accept `disabled`; cast so
+            // the visual placeholder still renders without the prop dropping.
+            <TagPickerOption
+              key="__none"
+              value="__none"
+              {...({ disabled: true } as Record<string, unknown>)}
+            >
               No more options
             </TagPickerOption>
           ) : (

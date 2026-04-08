@@ -6,6 +6,7 @@ import {
   ChevronUp24Regular,
   Dismiss24Regular,
 } from '@fluentui/react-icons';
+import type { ComponentType } from 'react';
 import { JsonFormsDispatch, withJsonFormsArrayControlProps } from '@jsonforms/react';
 import {
   Generate,
@@ -49,7 +50,15 @@ const useStyles = makeStyles({
   },
 });
 
-function ObjectArrayControlImpl(props: ArrayControlProps) {
+// `withJsonFormsArrayControlProps` injects `handleChange` at runtime, but the
+// typings in @jsonforms/core's newer `DispatchPropsOfArrayControl` no longer
+// surface it. Widen the prop type locally so we keep the path-based update
+// pattern without reaching for a cast.
+type ObjectArrayControlImplProps = ArrayControlProps & {
+  handleChange: (path: string, value: unknown) => void;
+};
+
+function ObjectArrayControlImpl(props: ObjectArrayControlImplProps) {
   const styles = useStyles();
   const {
     data,
@@ -190,4 +199,6 @@ function ObjectArrayControlImpl(props: ArrayControlProps) {
   );
 }
 
-export const ObjectArrayControl = withJsonFormsArrayControlProps(ObjectArrayControlImpl);
+export const ObjectArrayControl = withJsonFormsArrayControlProps(
+  ObjectArrayControlImpl as unknown as ComponentType<ArrayControlProps>,
+);

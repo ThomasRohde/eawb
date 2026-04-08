@@ -1,8 +1,22 @@
-import { TimePicker } from '@fluentui/react-timepicker-compat';
+import { TimePicker as RawTimePicker } from '@fluentui/react-timepicker-compat';
+import type { ComponentType } from 'react';
 import { withJsonFormsControlProps } from '@jsonforms/react';
 import type { ControlProps } from '@jsonforms/core';
 import { FieldWrapper, isControlDisabled } from '../shared/Field';
 import { formatIsoTime, parseIsoTime } from '../shared/timeIso';
+
+// Fluent's `TimePicker` is typed through a Combobox generic that doesn't
+// resolve its own prop overrides cleanly (`selectedTime`, `onTimeChange`, etc).
+// Re-declare the component with the prop shape we actually use so the JSX
+// site stays clean.
+const TimePicker = RawTimePicker as unknown as ComponentType<{
+  hour12?: boolean;
+  selectedTime?: Date | null;
+  disabled?: boolean;
+  formatDateToTimeString?: (d: Date) => string;
+  onTimeChange?: (_e: unknown, d: { selectedTime: Date | null; selectedTimeText?: string }) => void;
+  placeholder?: string;
+}>;
 
 function TimeControlImpl(props: ControlProps) {
   const {

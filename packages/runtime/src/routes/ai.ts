@@ -26,9 +26,11 @@ import {
   NotFoundError as FormNotFoundError,
   compileSchema,
   validateUiSchema,
+  collectControlScopes,
   InvalidJsonSchemaError,
   InvalidUiSchemaError,
 } from '@ea-workbench/json-forms-core';
+import type { ACPPromptResult } from '@ea-workbench/acp-core';
 import {
   ACTIONS_REQUIRING_SCHEMA,
   buildJsonFormsPrompt,
@@ -324,7 +326,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       }
 
       // 4. Execute the AI action.
-      let aiResult: { content: string; structured: unknown };
+      let aiResult: ACPPromptResult;
       try {
         aiResult = await executeAIAction(promptText, workspacePath);
       } catch (err) {

@@ -1,4 +1,5 @@
 import { Field } from '@fluentui/react-components';
+import type { JsonSchema } from '@jsonforms/core';
 import type { ReactElement } from 'react';
 
 interface FieldWrapperProps {
@@ -51,9 +52,11 @@ export function FieldWrapper({
  */
 export function isControlDisabled(
   enabled: boolean | undefined,
-  schema: { readOnly?: boolean } | undefined,
+  schema: JsonSchema | undefined,
 ): boolean {
   if (enabled === false) return true;
-  if (schema?.readOnly === true) return true;
+  if (schema && typeof schema === 'object' && 'readOnly' in schema && schema.readOnly === true) {
+    return true;
+  }
   return false;
 }

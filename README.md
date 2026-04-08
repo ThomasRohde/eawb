@@ -100,7 +100,7 @@ repo-root/
     cache/ index/ logs/
   architecture/
     bcm-studio/models/       # *.bcm.jsonl files
-    markdown-editor/docs/    # *.md documents 
+    markdown-editor/docs/    # *.md documents
     decisions/ reviews/ exports/
   .github/
     copilot-instructions.md  # Auto-generated, user-editable
@@ -143,7 +143,7 @@ npm run refresh     # Clean + build + global install
 
 ## Tech Stack
 
-- **Runtime**: Node.js, Fastify, WebSocket, SQLite (better-sqlite3)
+- **Runtime**: Node.js 24+, Fastify, WebSocket, SQLite (`node:sqlite`)
 - **Frontend**: React 19, Vite, Dockview, Fluent UI v9, Zustand, TanStack Query
 - **AI**: @agentclientprotocol/sdk, GitHub Copilot CLI
 - **Git**: simple-git (hidden behind architecture-native concepts)

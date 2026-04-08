@@ -22,6 +22,7 @@ import {
 } from '@fluentui/react-components';
 import { Add24Regular, Delete24Regular, Save24Regular } from '@fluentui/react-icons';
 import { JsonForms } from '@jsonforms/react';
+import type { JsonSchema, UISchemaElement } from '@jsonforms/core';
 import { fluentCells, fluentRenderers } from '../renderers';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import {
@@ -510,8 +511,8 @@ export function FormSchemaDesignerPanel() {
                 <Spinner size="small" />
               ) : previewSchema && previewUiSchema ? (
                 <JsonForms
-                  schema={previewSchema}
-                  uischema={previewUiSchema}
+                  schema={previewSchema as JsonSchema}
+                  uischema={previewUiSchema as unknown as UISchemaElement}
                   data={previewData}
                   renderers={fluentRenderers}
                   cells={fluentCells}

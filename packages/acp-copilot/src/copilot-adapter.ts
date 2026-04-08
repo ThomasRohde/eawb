@@ -112,37 +112,37 @@ export class CopilotACPAdapter implements IACPAdapter {
     const output = Readable.toWeb(this.childProcess.stdout!) as ReadableStream<Uint8Array>;
     const stream = ndJsonStream(input, output);
 
-    const self = this;
-
+    // Arrow functions capture `this` lexically from the enclosing method,
+    // so no explicit aliasing is needed.
     const toClient = (_connection: ClientSideConnection) => ({
       sessionUpdate: async (params: any) => {
-        self.handleSessionUpdate(params);
+        this.handleSessionUpdate(params);
       },
       requestPermission: async (params: any) => {
-        return self.handlePermissionRequest(params);
+        return this.handlePermissionRequest(params);
       },
       // File system operations
       readTextFile: async (params: any) => {
-        return self.handleReadTextFile(params);
+        return this.handleReadTextFile(params);
       },
       writeTextFile: async (params: any) => {
-        return self.handleWriteTextFile(params);
+        return this.handleWriteTextFile(params);
       },
       // Terminal operations
       createTerminal: async (params: any) => {
-        return self.handleCreateTerminal(params);
+        return this.handleCreateTerminal(params);
       },
       terminalOutput: async (params: any) => {
-        return self.handleTerminalOutput(params);
+        return this.handleTerminalOutput(params);
       },
       waitForTerminalExit: async (params: any) => {
-        return self.handleWaitForTerminalExit(params);
+        return this.handleWaitForTerminalExit(params);
       },
       killTerminal: async (params: any) => {
-        return self.handleKillTerminal(params);
+        return this.handleKillTerminal(params);
       },
       releaseTerminal: async (params: any) => {
-        return self.handleReleaseTerminal(params);
+        return this.handleReleaseTerminal(params);
       },
     });
 

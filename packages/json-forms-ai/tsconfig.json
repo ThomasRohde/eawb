@@ -6,9 +6,5 @@
     "composite": true
   },
   "include": ["src/**/*"],
-  "references": [
-    { "path": "../shared-schema" },
-    { "path": "../tool-api" },
-    { "path": "../json-forms-core" }
-  ]
+  "references": [{ "path": "../tool-api" }]
 }

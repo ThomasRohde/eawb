@@ -1,9 +1,21 @@
 import { makeStyles } from '@fluentui/react-components';
 import { DatePicker } from '@fluentui/react-datepicker-compat';
-import { TimePicker } from '@fluentui/react-timepicker-compat';
+import { TimePicker as RawTimePicker } from '@fluentui/react-timepicker-compat';
+import type { ComponentType } from 'react';
 import { withJsonFormsControlProps } from '@jsonforms/react';
 import type { ControlProps } from '@jsonforms/core';
 import { FieldWrapper, isControlDisabled } from '../shared/Field';
+
+// See TimeControl.tsx — TimePicker's Combobox-generic typings don't surface
+// its own props. Re-declare with the prop shape we use.
+const TimePicker = RawTimePicker as unknown as ComponentType<{
+  hour12?: boolean;
+  selectedTime?: Date | null;
+  disabled?: boolean;
+  formatDateToTimeString?: (d: Date) => string;
+  onTimeChange?: (_e: unknown, d: { selectedTime: Date | null; selectedTimeText?: string }) => void;
+  placeholder?: string;
+}>;
 import {
   formatIsoDate,
   formatIsoDateTime,

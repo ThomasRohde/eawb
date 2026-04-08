@@ -1,15 +1,15 @@
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import { PATHS } from '@ea-workbench/shared-schema';
 
-let db: Database.Database | null = null;
+let db: DatabaseSync | null = null;
 
-export function getDb(workspacePath: string): Database.Database {
+export function getDb(workspacePath: string): DatabaseSync {
   if (db) return db;
 
   const dbPath = path.join(workspacePath, PATHS.INDEX_DIR, 'workbench.db');
-  db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
+  db = new DatabaseSync(dbPath);
+  db.exec('PRAGMA journal_mode = WAL');
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS kv (
@@ -57,10 +57,22 @@ export function auditLog(
 export function getAuditLog(
   workspacePath: string,
   limit: number = 50,
-): Array<{ id: number; timestamp: string; tool_id: string; action: string; artifact_id: string | null; detail: string | null }> {
+): Array<{
+  id: number;
+  timestamp: string;
+  tool_id: string;
+  action: string;
+  artifact_id: string | null;
+  detail: string | null;
+}> {
   const database = getDb(workspacePath);
-  const stmt = database.prepare(
-    'SELECT * FROM audit_log ORDER BY id DESC LIMIT ?',
-  );
-  return stmt.all(limit) as Array<{ id: number; timestamp: string; tool_id: string; action: string; artifact_id: string | null; detail: string | null }>;
+  const stmt = database.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT ?');
+  return stmt.all(limit) as Array<{
+    id: number;
+    timestamp: string;
+    tool_id: string;
+    action: string;
+    artifact_id: string | null;
+    detail: string | null;
+  }>;
 }

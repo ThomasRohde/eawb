@@ -5,6 +5,7 @@ import {
   ChevronUp24Regular,
   Delete24Regular,
 } from '@fluentui/react-icons';
+import type { ComponentType } from 'react';
 import { withJsonFormsArrayControlProps } from '@jsonforms/react';
 import type { ArrayControlProps, JsonSchema } from '@jsonforms/core';
 import { FieldWrapper, isControlDisabled } from '../shared/Field';
@@ -44,7 +45,11 @@ function emptyValueFor(itemSchema: JsonSchema | undefined): unknown {
   }
 }
 
-function PrimitiveArrayControlImpl(props: ArrayControlProps) {
+type PrimitiveArrayControlImplProps = ArrayControlProps & {
+  handleChange: (path: string, value: unknown) => void;
+};
+
+function PrimitiveArrayControlImpl(props: PrimitiveArrayControlImplProps) {
   const styles = useStyles();
   const {
     data,
@@ -170,4 +175,6 @@ function PrimitiveArrayControlImpl(props: ArrayControlProps) {
   );
 }
 
-export const PrimitiveArrayControl = withJsonFormsArrayControlProps(PrimitiveArrayControlImpl);
+export const PrimitiveArrayControl = withJsonFormsArrayControlProps(
+  PrimitiveArrayControlImpl as unknown as ComponentType<ArrayControlProps>,
+);

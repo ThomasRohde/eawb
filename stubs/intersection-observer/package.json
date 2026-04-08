@@ -1,0 +1,8 @@
+{
+  "name": "intersection-observer",
+  "version": "0.10.0",
+  "description": "Local workspace stub. The upstream `intersection-observer` polyfill is deprecated (IntersectionObserver is Baseline in all target browsers). We ship an empty workspace package with the same name so npm hoists it into node_modules and every consumer resolves to the stub instead of the deprecated registry package.",
+  "main": "index.js",
+  "private": true,
+  "license": "MIT"
+}

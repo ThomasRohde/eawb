@@ -15,6 +15,7 @@ import {
 } from '@fluentui/react-components';
 import { Checkmark16Regular, Dismiss16Regular, Save24Regular } from '@fluentui/react-icons';
 import { JsonForms } from '@jsonforms/react';
+import type { JsonSchema, UISchemaElement } from '@jsonforms/core';
 import type { AIResultRendererProps } from '@ea-workbench/tool-api';
 import { fluentCells, fluentRenderers } from '../renderers';
 
@@ -436,8 +437,8 @@ function FullSchemaPreview({
 
       <div className={styles.previewWrap}>
         <JsonForms
-          schema={proposal.jsonSchema}
-          uischema={proposal.uiSchema}
+          schema={proposal.jsonSchema as JsonSchema}
+          uischema={proposal.uiSchema as unknown as UISchemaElement}
           data={previewData}
           renderers={fluentRenderers}
           cells={fluentCells}
