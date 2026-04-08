@@ -1,6 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { HELP_CONTENT } from './content-bundle.js';
 
 export interface HelpTopic {
   id: string;
@@ -43,27 +41,14 @@ function parseFrontMatter(raw: string): { meta: FrontMatter; body: string } {
 
 let _cache: HelpTopic[] | null = null;
 
-function contentDir(): string {
-  const thisFile = fileURLToPath(import.meta.url);
-  // In dist/index.js → dist/content/  OR  src/ → ../content/
-  const dir = join(thisFile, '..', 'content');
-  return dir;
-}
-
 export function loadTopics(): HelpTopic[] {
   if (_cache) return _cache;
 
-  const dir = contentDir();
-  const files = readdirSync(dir)
-    .filter((f) => f.endsWith('.md'))
-    .sort();
   const topics: HelpTopic[] = [];
-
-  for (const file of files) {
-    const raw = readFileSync(join(dir, file), 'utf-8');
+  for (const [id, raw] of Object.entries(HELP_CONTENT)) {
     const { meta, body } = parseFrontMatter(raw);
     topics.push({
-      id: file.replace(/\.md$/, ''),
+      id,
       title: meta.title,
       category: meta.category,
       order: meta.order,

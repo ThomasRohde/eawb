@@ -12,6 +12,7 @@
     }
   },
   "scripts": {
+    "prebuild": "node scripts/generate-content-bundle.mjs",
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run"
